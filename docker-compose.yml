@@ -1,0 +1,72 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: market_data_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: market_data
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - market_data_network
+
+  # Database Migration Service
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: market_data_migration
+    command: ["sh", "-c", "alembic upgrade head"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/market_data
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - market_data_network
+    restart: "no"
+
+  # Application API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: market_data_api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/market_data
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-demo}
+      - ETL_ENABLED=${ETL_ENABLED:-True}
+      - ETL_INTERVAL_MINUTES=${ETL_INTERVAL_MINUTES:-5}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    networks:
+      - market_data_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: market_data_postgres_data
+
+networks:
+  market_data_network:
+    name: market_data_network
+    driver: bridge

@@ -1,0 +1,210 @@
+### Base URL
+@baseUrl = http://localhost:8000
+@apiPrefix = /api/v1
+
+###############################################################################
+### 1. Health check
+###############################################################################
+
+### Health check
+GET {{baseUrl}}{{apiPrefix}}/health
+
+###############################################################################
+### 2. Market data CRUD operations
+###############################################################################
+
+### Create market data (single record)
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2023-01-15",
+  "open": 150.50,
+  "high": 155.75,
+  "low": 149.25,
+  "close": 153.80,
+  "volume": 75000000
+}
+
+### Create another record
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "GOOGL",
+  "date": "2023-01-15",
+  "open": 140.00,
+  "high": 145.00,
+  "low": 139.50,
+  "close": 144.25,
+  "volume": 50000000
+}
+
+### Create record with different date
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2023-01-16",
+  "open": 153.80,
+  "high": 157.50,
+  "low": 152.00,
+  "close": 156.25,
+  "volume": 80000000
+}
+
+###############################################################################
+### 3. List market data (with various filters)
+###############################################################################
+
+### List all market data (default pagination: page 1, size 50)
+GET {{baseUrl}}{{apiPrefix}}/market-data
+
+### List with custom pagination (page and size parameters)
+GET {{baseUrl}}{{apiPrefix}}/market-data?page=1&size=10
+
+### Filter by ticker
+GET {{baseUrl}}{{apiPrefix}}/market-data?ticker=AAPL
+
+### Filter by date range
+GET {{baseUrl}}{{apiPrefix}}/market-data?start_date=2025-01-01&end_date=2025-12-31
+
+### Filter by ticker and date range
+GET {{baseUrl}}{{apiPrefix}}/market-data?ticker=AAPL&start_date=2025-01-01&end_date=2025-01-31
+
+### Paginated with filters
+GET {{baseUrl}}{{apiPrefix}}/market-data?ticker=AAPL&page=1&size=5
+
+###############################################################################
+### 4. Get single market data record
+###############################################################################
+
+### Get market data by ID
+GET {{baseUrl}}{{apiPrefix}}/market-data/3
+
+### Get non-existent record (should return 404)
+GET {{baseUrl}}{{apiPrefix}}/market-data/99999
+
+###############################################################################
+### 5. Update market data
+###############################################################################
+
+### Update market data (partial update)
+PUT {{baseUrl}}{{apiPrefix}}/market-data/3
+Content-Type: application/json
+
+{
+  "close": 160.00,
+  "volume": 90000000
+}
+
+### Update with all fields
+PUT {{baseUrl}}{{apiPrefix}}/market-data/3
+Content-Type: application/json
+
+{
+  "open": 155.00,
+  "high": 162.00,
+  "low": 154.00,
+  "close": 161.50,
+  "volume": 95000000
+}
+
+###############################################################################
+### 6. Delete market data
+###############################################################################
+
+### Delete market data by ID
+DELETE {{baseUrl}}{{apiPrefix}}/market-data/3
+
+### Try to delete non-existent record (should return 404)
+DELETE {{baseUrl}}{{apiPrefix}}/market-data/99999
+
+###############################################################################
+### 7. List available tickers
+###############################################################################
+
+### Get all unique tickers in database
+GET {{baseUrl}}{{apiPrefix}}/tickers
+
+###############################################################################
+### 8. ETL operations
+###############################################################################
+
+### Full refresh - load all 100 days for all tickers (uses API quota!)
+POST {{baseUrl}}{{apiPrefix}}/etl/run?force=true&incremental=false
+
+### Smart incremental - only loads NEW data, skips if current (RECOMMENDED)
+POST {{baseUrl}}{{apiPrefix}}/etl/run?incremental=true
+
+### Default mode - full load without smart skip
+POST {{baseUrl}}{{apiPrefix}}/etl/run
+
+### Force incremental - updates today's data even if already loaded
+POST {{baseUrl}}{{apiPrefix}}/etl/run?force=true&incremental=true
+
+### Smart incremental for specific tickers (saves API calls)
+POST {{baseUrl}}{{apiPrefix}}/etl/run?tickers=AAPL&tickers=MSFT&incremental=true
+
+### Full refresh for single ticker
+POST {{baseUrl}}{{apiPrefix}}/etl/run?tickers=AAPL&force=true&incremental=false
+
+###############################################################################
+### 9. Error cases (for testing validation)
+###############################################################################
+
+### Create with missing required field (should return 422)
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2024-01-15",
+  "high": 155.00,
+  "low": 149.00,
+  "close": 153.00
+}
+
+### Create with invalid data type (should return 422)
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2024-01-15",
+  "open": "not_a_number",
+  "high": 155.00,
+  "low": 149.00,
+  "close": 153.00,
+  "volume": 1000000
+}
+
+### Create with negative price (should return 422)
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2024-01-15",
+  "open": -150.00,
+  "high": 155.00,
+  "low": 149.00,
+  "close": 153.00,
+  "volume": 1000000
+}
+
+### Create duplicate record (should return 409 conflict)
+POST {{baseUrl}}{{apiPrefix}}/market-data
+Content-Type: application/json
+
+{
+  "ticker": "AAPL",
+  "date": "2024-01-15",
+  "open": 150.00,
+  "high": 155.00,
+  "low": 149.00,
+  "close": 153.00,
+  "volume": 1000000
+}
